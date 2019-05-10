@@ -25,8 +25,45 @@
 	<body>
 		<div class="reveal">
 			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
+        <section data-markdown>
+          # Abstacting behaviour
+        </section>
+				<section data-markdown class="stretch">
+          Geocoding requirements
+            - geocode a list of addresses
+            - use Google Api
+        </section>
+				<section>
+          <pre class="stretch"><code data-trim data-noescape>
+/**
+ * What a greocoder should return
+ */
+type Coords = {
+  lat: number,
+  lng: number
+};
+
+/**
+ * A geocoder calling Google API
+ */
+class GoogleGeocoder {
+  // Authentication key
+  private readonly key: string;
+
+  public async geocode(address: string): Promise<Coords | null> {
+    // Do something smarter than the following line!
+    return Promise.resolve(null)
+  }
+}
+
+function geocode(addresses: string[]): Promise<(Coords | null)[]> {
+  let geocoder = new GoogleGeocoder();
+  return Promise.all(addresses.map((address) => {
+    return geocoder.geocode(address);
+  }))
+}
+          </code></pre>
+        </section>
 			</div>
 		</div>
 
@@ -37,6 +74,9 @@
 			// - https://github.com/hakimel/reveal.js#configuration
 			// - https://github.com/hakimel/reveal.js#dependencies
 			Reveal.initialize({
+        controls: false,
+        progress: false,
+        transition: 'none',
 				dependencies: [
 					{ src: 'plugin/markdown/marked.js' },
 					{ src: 'plugin/markdown/markdown.js' },
