@@ -26,17 +26,17 @@
 		<div class="reveal">
 			<div class="slides">
         <section data-markdown>
-          # Abstacting behaviour
+          # Abstracting behaviour
         </section>
 
-				<section data-markdown class="stretch">
+				<section data-markdown class="stretch" style="text-align: left">
           Geocoding requirements
             - geocode a list of addresses
             - use Google Api
         </section>
 				<section>
           <pre class="stretch"><code data-trim data-noescape>
-// What a greocoder should return
+// What a geocoder should return
 type Coords = {
   lat: number,
   lng: number
@@ -47,7 +47,7 @@ class GoogleGeocoder {
   // Authentication key
   private readonly key: string;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
+  public geocode(address: string): Promise<(Coords | null)> {
     // Do something smarter than the following
     return Promise.resolve(null)
   }
@@ -60,7 +60,7 @@ function geocode(addresses: string[]): Promise<(Coords | null)[]> {
           </code></pre>
         </section>
 
-				<section data-markdown class="stretch">
+				<section data-markdown class="stretch" style="text-align: left">
           Geocoding requirements
             - geocode a list of addresses
             - use Google Api
@@ -70,7 +70,6 @@ function geocode(addresses: string[]): Promise<(Coords | null)[]> {
           <pre class="stretch"><code data-trim data-noescape>
 // A geocoder calling HereMap Api
 class HereMapGeocoder {
-  // Pretty much the same as GoogleGeocoder
   // ...
 }
 
@@ -79,10 +78,10 @@ class GoogleAndHereMapGeocoder {
   private readonly googleGeocoder: GoogleGeocoder;
   private readonly hereMapGeocoder: HereMapGeocoder;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
+  public geocode(address: string): Promise<(Coords | null)> {
     return this.googleGeocoder
       .geocode(address)
-      .catch((e) => {
+      .catch(() => {
         return this.hereMapGeocoder.geocode(address)
       })
   }
@@ -95,10 +94,10 @@ function geocode(addresses: string[]): Promise<(Coords | null)[]> {
           </code></pre>
         </section>
 
-				<section data-markdown class="stretch">
+				<section data-markdown class="stretch" style="text-align: left">
           Geocoding requirements
             - geocode a list of addresses
-            - use Google Api or HereMap Api first (part of the input)
+            - use Google Api or HereMap Api first
             - fallback on the other Api
         </section>
         <section>
@@ -114,17 +113,17 @@ class HereMapAndGoogleGeocoder {
   private readonly googleGeocoder: GoogleGeocoder;
   private readonly hereMapGeocoder: HereMapGeocoder;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
+  public geocode(address: string): Promise<(Coords | null)> {
     return this.hereMapGeocoder
       .geocode(address)
-      .catch((e) => {
+      .catch(() => {
         return this.googleGeocoder.geocode(address)
       })
   }
 }
 
-function geocode(addresses: string[], preference?: Preference): Promise<(Coords | null)[]> {
-  let geocoder = ((preference == null) || (preference == Preference.Google))
+function geocode(addresses: string[], pref?: Preference): Promise<(Coords | null)[]> {
+  let geocoder = ((pref == null) || (pref == Preference.Google))
     ? new GoogleAndHereMapGeocoder()
     : new HereMapAndGoogleGeocoder();
     
@@ -141,10 +140,10 @@ class GoogleAndHereMapGeocoder {
   private readonly googleGeocoder: GoogleGeocoder;
   private readonly hereMapGeocoder: HereMapGeocoder;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
+  public geocode(address: string): Promise<(Coords | null)> {
     return this.googleGeocoder
       .geocode(address)
-      .catch((e) => {
+      .catch(() => {
         return this.hereMapGeocoder.geocode(address)
       })
   }
@@ -155,10 +154,10 @@ class HereMapAndGoogleGeocoder {
   private readonly googleGeocoder: GoogleGeocoder;
   private readonly hereMapGeocoder: HereMapGeocoder;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
+  public geocode(address: string): Promise<(Coords | null)> {
     return this.hereMapGeocoder
       .geocode(address)
-      .catch((e) => {
+      .catch(() => {
         return this.googleGeocoder.geocode(address)
       })
   }
@@ -169,33 +168,33 @@ class HereMapAndGoogleGeocoder {
           Group geocoder selection with fallback logic
           <pre class="stretch"><code data-trim data-noescape>
 // A geocoder calling the Google API or HereMap API and falling back on the other
-class FallbackGeocoder {
+class GeocoderWithPreference {
   private readonly googleGeocoder: GoogleGeocoder;
   private readonly hereMapGeocoder: HereMapGeocoder;
 
-  public async geocode(address: string, preference?: Preference): Promise<(Coords | null)> {
-    let [primary, secondary] = ((preference == null) || (preference == Preference.Google))
+  public geocode(address: string, pref?: Preference): Promise<(Coords | null)> {
+    let [primary, secondary] = ((pref == null) || (pref == Preference.Google))
       ? [this.googleGeocoder, this.hereMapGeocoder]
       : [this.HereMapGeocoder, this.googleGeocoder];
     
     return primary
       .geocode(address)
-      .catch((e) => {
+      .catch(() => {
         return secondary.geocode(address)
       })
   }
 }
 
-function geocode(addresses: string[], preference?: Preference): Promise<(Coords | null)[]> {
-  let fallbackGeocoder = new FallbackGeocoder();
+function geocode(addresses: string[], pref?: Preference): Promise<(Coords | null)[]> {
+  let geocoderWithPreference = new GeocoderWithPreference();
   return Promise.all(addresses.map((address) => {
-    return geocoder.geocode(address, preference);
+    return geocoderWithPreference.geocode(address, pref);
   }));
 }
           </code></pre>
         </section>
 
-				<section data-markdown class="stretch">
+				<section data-markdown class="stretch" style="text-align: left">
           Geocoding requirements
             - geocode a list of addresses
             - use Google Api or HereMap Api first
@@ -211,8 +210,8 @@ class RateLimitedGoogleGeocoder {
   private tasks: (() &#8614 void)[];
   private scheduler: any;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
-    // add a new task
+  public geocode(address: string): Promise<(Coords | null)> {
+    // queue a new task
     let p = new Promise((res, rej) => {
       this.tasks.push(() => {
         this.geocoder.geocode(address).then(res, rej)
@@ -226,12 +225,12 @@ class RateLimitedGoogleGeocoder {
 }
           </code></pre>
           <p class="fragment">
-            Do we copy paste the code for rate limiting calls to HereMap Api ?
+            Do we copy/paste for rate limiting HereMap Api calls ?
           </p>
         </section>
         <section>
           Of course not!
-          <pre class="stretch"><code class="hlts" data-trim data-noescape>
+          <pre class="stretch"><code data-trim data-noescape data-line-numbers="1-3,8-10,16">
 // A rate limited geocoder calling Google API or HereMap API.
 class RateLimitedGeocoder {
   private geocoder: GoogleGeocoder | HereMapGeocoder;
@@ -239,7 +238,11 @@ class RateLimitedGeocoder {
   private tasks: (() &#8614 void)[];
   private scheduler: any;
 
-  public async geocode(address: string): Promise<(Coords | null)> {
+  constructor(geocoder: GoogleGeocoder | HereMapGeocoder) {
+    this.geocoder = geocoder
+  }
+
+  public geocode(address: string): Promise<(Coords | null)> {
     // add a new task
     let p = new Promise((res, rej) => {
       this.tasks.push(() => {
@@ -253,6 +256,224 @@ class RateLimitedGeocoder {
   }
 }
           </code></pre>
+        </section>
+        <section>
+          We need to fix the `GeocoderWithPreference` logic
+          <pre class="stretch"><code data-trim data-noescape data-line-numbers="3-4,12,14">
+// A geocoder calling the Google API or HereMap API and falling back on the other
+class GeocoderWithPreference {
+  private readonly googleGeocoder: RateLimitedGeocoder;
+  private readonly hereMapGeocoder: RateLimitedGeocoder;
+
+  public geocode(address: string, pref?: Preference): Promise<(Coords | null)> {
+    let [primary, secondary] = ((pref == null) || (pref == Preference.Google))
+      ? [this.googleGeocoder, this.hereMapGeocoder]
+      : [this.HereMapGeocoder, this.googleGeocoder];
+    
+    return primary
+      .geocode(address)
+      .catch(() => {
+        return secondary.geocode(address)
+      })
+  }
+}
+          </code></pre>
+        </section>
+        <section>
+          There is a pattern...
+          <pre><code class="fragment" data-trim data-noescape>
+// The Api of a geocoder object
+interface IGeocoder {
+  geocode(address: string): Promise<(Coords | null)>;
+}
+          </code></pre>
+          <p class="fragment">that some of our classes already implement</p>
+          <pre class="stretch"><code class="fragment" data-trim data-noescape>
+class GoogleGeocoder implements IGeocoder {
+  public geocode(address: string): Promise<(Coords | null)> {
+    // ... 
+  }
+}
+
+class HereMapGeocoder implements IGeocoder {
+  public geocode(address: string): Promise<(Coords | null)> {
+    // ... 
+  }
+}
+
+class RateLimitedGeocoder implements IGeocoder {
+  public geocode(address: string): Promise<(Coords | null)> {
+    // ... 
+  }
+}
+          </code></pre>
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape data-line-numbers="1-3,8,16">
+// A rate limited geocoder
+class RateLimitedGeocoder implements IGeocoder {
+  private geocoder: IGeocoder;
+  private waitTime: number;
+  private tasks: (() &#8614 void)[];
+  private scheduler: any;
+
+  constructor(geocoder: IGeocoder) {
+    this.geocoder = geocoder
+  }
+
+  public geocode(address: string): Promise<(Coords | null)> {
+    // add a new task
+    let p = new Promise((res, rej) => {
+      this.tasks.push(() => {
+        this.geocoder.geocode(address).then(res, rej)
+      });
+    });
+    // make sure the scheduler is on
+    // ...
+
+    return p
+  }
+}
+          </code></pre>
+          <p>Both more explicit and more generic!</p>
+        </section>
+
+				<section data-markdown class="stretch" style="text-align: left">
+          Geocoding requirements
+            - geocode a list of addresses
+            - use Google Api or HereMap Api first
+            - fallback on the other Api
+            - do not exceed rate limit on Api calls
+            - cache Google Api gecoding results for a day
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+// A geocoder with a cache layer
+class CacheGeocoder implements IGeocoder {
+  private readonly cache: Cache;
+  private readonly geocoder: IGeocoder;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    let cached = this.cache.get(address).then(JSON.parse);
+    if (cached != undefined) {
+      return cached;
+    } else {
+      let coords = await this.geocoder.geocode(address);
+      this.cache.set(address, JSON.stringify(coords));
+      return coords;
+    }
+  }
+}
+          </code></pre>
+        </section>
+				<section>
+          <p data-markdown class="stretch">
+          `GeocoderWithPreference` and `CacheGeocoder` do:
+          - try a first way to get coordinates
+          - if it fails try another way
+          </p>
+          <p class="fragment">Let's express that in the code!</p>
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+// A geocoder combining 2 geocoders:
+// - the the primary geocoder is used
+// - if it fails, the secondary geocoder is called
+class FallbackGeocoder implements IGeocoder {
+  private readonly primary: IGeocoder;
+  private readonly secondary: IGeocoder;
+
+  constructor(primary: IGeocoder, secondary: IGeocoder) {
+    this.primary = primary;
+    this.secondary = secondary;
+  }
+
+  public geocode(address: string): Promise<(Coords | null)> {
+    return this.primary
+      .geocode(address)
+      .catch((e) => {
+        console.warn(`Failed to geocode with primary geocoder: ${e}`);
+        return this.secondary.geocode(address)
+      })
+  }
+}
+          </code></pre>
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+// A geocoder reading from cache
+class ReadCacheGeocoder implements IGeocoder {
+  private cache: Cache;
+
+  public geocode(address: string): Promise<(Coords | null)> {
+    return this.cache.get(address).then(JSON.parse);
+  }
+}
+
+// A geocoder caching it results
+class WriteCacheGeocoder implements IGeocoder {
+  private cache: Cache;
+  private geocoder: IGeocoder
+
+  public geocode(address: string): Promise<(Coords | null)> {
+    return this.geocoder
+      .geocode(address)
+      .then((coords) => {
+        this.cache.set(address, JSON.stringify(coords));
+        return coords;
+      });
+  }
+}
+
+// A geocoder with a cache layer
+class CacheGeocoder implements IGeocoder {
+  private geocoder: FallbackGeocoder;
+
+  constructor(cache: Cache, geocoder: IGeocoder) {
+    let cacheReader = new ReadCacheGeocoder(cache);
+    let cacheWriter = new WriteCacheGeocoder(cache, geocoder);
+    this.geocoder = new FallbackGeocoder(cacheReader, cacheWriter);
+  }
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    return this.geocoder.geocode(address);
+  }
+}
+          </code></pre>
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+function geocode(addresses: string[], pref?: Preference): Promise<(Coords | null)[]> {
+  let google = new CacheGeocoder(
+    new Cache(),
+    new RateLimitedGeocoder(
+      new GoogleGeocoder()
+    )
+  );
+  let hereMap = new RateLimitedGeocoder(
+    new HereMapGeocoder()
+  );
+  let geocoder = ((pref == null) || (pref == Preference.Google))
+    ? new FallbackGeocoder(googleGeocoder, hereMapGeocoder)
+    : new FallbackGeocoder(hereMapGeocoder, googleGeocoder);
+  return Promise.all(addresses.map(geocoder.geocode));
+}
+          </code></pre>
+        </section>
+        <section>
+          <p>Composed <code>IGeocoder</code></p>
+          <img class="stretch" src="lib/geocoders.svg" style="border: none; background: none;">
+        </section>
+				<section data-markdown class="stretch" style="text-align: left">
+            Abstracting behaviour let's you:
+              - be explicit about the behaviour (readable code)
+              - be more generic (compose/swap objects)
+              - detach behaviour from data (!= class inheritance)
+
+            Links:
+              - TypeScript [doc](https://www.typescriptlang.org/docs/handbook/interfaces.html)
+              - Rust [doc](https://doc.rust-lang.org/book/ch10-02-traits.html)
+              - Designing for understanding [youtube](https://www.youtube.com/watch?v=2uBbjq-Trnk)
         </section>
 			</div>
 		</div>
