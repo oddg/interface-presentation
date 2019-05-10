@@ -28,6 +28,7 @@
         <section data-markdown>
           # Abstacting behaviour
         </section>
+
 				<section data-markdown class="stretch">
           Geocoding requirements
             - geocode a list of addresses
@@ -35,32 +36,221 @@
         </section>
 				<section>
           <pre class="stretch"><code data-trim data-noescape>
-/**
- * What a greocoder should return
- */
+// What a greocoder should return
 type Coords = {
   lat: number,
   lng: number
 };
 
-/**
- * A geocoder calling Google API
- */
+// A geocoder calling Google API
 class GoogleGeocoder {
   // Authentication key
   private readonly key: string;
 
-  public async geocode(address: string): Promise<Coords | null> {
-    // Do something smarter than the following line!
+  public async geocode(address: string): Promise<(Coords | null)> {
+    // Do something smarter than the following
     return Promise.resolve(null)
   }
 }
 
 function geocode(addresses: string[]): Promise<(Coords | null)[]> {
   let geocoder = new GoogleGeocoder();
+  return Promise.all(addresses.map(geocoder.geocode));
+}
+          </code></pre>
+        </section>
+
+				<section data-markdown class="stretch">
+          Geocoding requirements
+            - geocode a list of addresses
+            - use Google Api
+            - fallback on HereMap Api
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+// A geocoder calling HereMap Api
+class HereMapGeocoder {
+  // Pretty much the same as GoogleGeocoder
+  // ...
+}
+
+// A geocoder calling the Google API and falling back on HereMap API
+class GoogleAndHereMapGeocoder {
+  private readonly googleGeocoder: GoogleGeocoder;
+  private readonly hereMapGeocoder: HereMapGeocoder;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    return this.googleGeocoder
+      .geocode(address)
+      .catch((e) => {
+        return this.hereMapGeocoder.geocode(address)
+      })
+  }
+}
+
+function geocode(addresses: string[]): Promise<(Coords | null)[]> {
+  let geocoder = new GoogleAndHereMapGeocoder();
+  return Promise.all(addresses.map(geocoder.geocode));
+}
+          </code></pre>
+        </section>
+
+				<section data-markdown class="stretch">
+          Geocoding requirements
+            - geocode a list of addresses
+            - use Google Api or HereMap Api first (part of the input)
+            - fallback on the other Api
+        </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+// Geocoding preference
+enum Preference {
+  Google,
+  HereMap
+}
+
+// A geocoder calling the HereMap API and falling back on Google API
+class HereMapAndGoogleGeocoder {
+  private readonly googleGeocoder: GoogleGeocoder;
+  private readonly hereMapGeocoder: HereMapGeocoder;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    return this.hereMapGeocoder
+      .geocode(address)
+      .catch((e) => {
+        return this.googleGeocoder.geocode(address)
+      })
+  }
+}
+
+function geocode(addresses: string[], preference?: Preference): Promise<(Coords | null)[]> {
+  let geocoder = ((preference == null) || (preference == Preference.Google))
+    ? new GoogleAndHereMapGeocoder()
+    : new HereMapAndGoogleGeocoder();
+    
+  return Promise.all(addresses.map(geocoder.geocode));
+}
+
+          </code></pre>
+        </section>
+        <section>
+          The fallback logic is duplicated
+          <pre class="stretch"><code data-trim data-noescape data-line-numbers="7,10,21,24">
+// A geocoder calling the Google API and falling back on HereMap API
+class GoogleAndHereMapGeocoder {
+  private readonly googleGeocoder: GoogleGeocoder;
+  private readonly hereMapGeocoder: HereMapGeocoder;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    return this.googleGeocoder
+      .geocode(address)
+      .catch((e) => {
+        return this.hereMapGeocoder.geocode(address)
+      })
+  }
+}
+
+// A geocoder calling the HereMap API and falling back on Google API
+class HereMapAndGoogleGeocoder {
+  private readonly googleGeocoder: GoogleGeocoder;
+  private readonly hereMapGeocoder: HereMapGeocoder;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    return this.hereMapGeocoder
+      .geocode(address)
+      .catch((e) => {
+        return this.googleGeocoder.geocode(address)
+      })
+  }
+}
+          </code></pre>
+        </section>
+        <section>
+          Group geocoder selection with fallback logic
+          <pre class="stretch"><code data-trim data-noescape>
+// A geocoder calling the Google API or HereMap API and falling back on the other
+class FallbackGeocoder {
+  private readonly googleGeocoder: GoogleGeocoder;
+  private readonly hereMapGeocoder: HereMapGeocoder;
+
+  public async geocode(address: string, preference?: Preference): Promise<(Coords | null)> {
+    let [primary, secondary] = ((preference == null) || (preference == Preference.Google))
+      ? [this.googleGeocoder, this.hereMapGeocoder]
+      : [this.HereMapGeocoder, this.googleGeocoder];
+    
+    return primary
+      .geocode(address)
+      .catch((e) => {
+        return secondary.geocode(address)
+      })
+  }
+}
+
+function geocode(addresses: string[], preference?: Preference): Promise<(Coords | null)[]> {
+  let fallbackGeocoder = new FallbackGeocoder();
   return Promise.all(addresses.map((address) => {
-    return geocoder.geocode(address);
-  }))
+    return geocoder.geocode(address, preference);
+  }));
+}
+          </code></pre>
+        </section>
+
+				<section data-markdown class="stretch">
+          Geocoding requirements
+            - geocode a list of addresses
+            - use Google Api or HereMap Api first
+            - fallback on the other Api
+            - do not exceed rate limit on Api calls
+        </section>
+        <section>
+          <pre class="stretch"><code class="hlts" data-trim data-noescape>
+// A rate limited geocoder calling Google API.
+class RateLimitedGoogleGeocoder {
+  private geocoder: GoogleGeocoder;
+  private waitTime: number;
+  private tasks: (() &#8614 void)[];
+  private scheduler: any;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    // add a new task
+    let p = new Promise((res, rej) => {
+      this.tasks.push(() => {
+        this.geocoder.geocode(address).then(res, rej)
+      });
+    });
+    // make sure the scheduler is on
+    // ...
+
+    return p
+  }
+}
+          </code></pre>
+          <p class="fragment">
+            Do we copy paste the code for rate limiting calls to HereMap Api ?
+          </p>
+        </section>
+        <section>
+          Of course not!
+          <pre class="stretch"><code class="hlts" data-trim data-noescape>
+// A rate limited geocoder calling Google API or HereMap API.
+class RateLimitedGeocoder {
+  private geocoder: GoogleGeocoder | HereMapGeocoder;
+  private waitTime: number;
+  private tasks: (() &#8614 void)[];
+  private scheduler: any;
+
+  public async geocode(address: string): Promise<(Coords | null)> {
+    // add a new task
+    let p = new Promise((res, rej) => {
+      this.tasks.push(() => {
+        this.geocoder.geocode(address).then(res, rej)
+      });
+    });
+    // make sure the scheduler is on
+    // ...
+
+    return p
+  }
 }
           </code></pre>
         </section>
