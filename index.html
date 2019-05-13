@@ -93,6 +93,9 @@ function geocode(addresses: string[]): Promise<(Coords | null)[]> {
 }
           </code></pre>
         </section>
+        <section>
+          <img class="stretch" src="lib/GoogleHereMap.svg" style="border: none; background: none;">
+        </section>
 
 				<section data-markdown class="stretch" style="text-align: left">
           Geocoding requirements
@@ -192,6 +195,9 @@ function geocode(addresses: string[], pref?: Preference): Promise<(Coords | null
   }));
 }
           </code></pre>
+        </section>
+        <section>
+          <img class="stretch" src="lib/GeocoderWithPreference.svg" style="border: none; background: none;">
         </section>
 
 				<section data-markdown class="stretch" style="text-align: left">
@@ -337,6 +343,9 @@ class RateLimitedGeocoder implements IGeocoder {
           </code></pre>
           <p>Both more explicit and more generic!</p>
         </section>
+        <section>
+          <img class="stretch" src="lib/RateLimitedGeocoder.svg" style="border: none; background: none;">
+        </section>
 
 				<section data-markdown class="stretch" style="text-align: left">
           Geocoding requirements
@@ -377,7 +386,7 @@ class CacheGeocoder implements IGeocoder {
         <section>
           <pre class="stretch"><code data-trim data-noescape>
 // A geocoder combining 2 geocoders:
-// - the the primary geocoder is used
+// - the primary geocoder is used
 // - if it fails, the secondary geocoder is called
 class FallbackGeocoder implements IGeocoder {
   private readonly primary: IGeocoder;
@@ -464,10 +473,45 @@ function geocode(addresses: string[], pref?: Preference): Promise<(Coords | null
           <p>Composed <code>IGeocoder</code></p>
           <img class="stretch" src="lib/geocoders.svg" style="border: none; background: none;">
         </section>
+        <section>
+          <pre class="stretch"><code data-trim data-noescape>
+class FailingGeocoder implements IGeocoder {
+  public geocode(address: string): Promise<(Coords | null)> {
+    return Promise.reject(null);
+  }
+}
+
+class SpyGeocoder implements IGeocoder {
+  private spy: (() &#8614 void);
+
+  constructor(spy: () => void) {
+    this.spy = spy;
+  }
+
+  public geocode(address: string): Promise<(Coords | null)> {
+    this.spy();
+    return Promise.resolve({ lat: 0, lng: 0});
+  }
+}
+
+describe('FallbackGeocoder', () => {
+  test('calls the secondary geocoder', () => {
+    let spyFn = jest.fn();
+    let fallback = new FallbackGeocoder(
+      new FailingGeocoder(),
+      new SpyGeocoder(spyFn)
+    );
+    await fallback.geocode();
+    expect(spyFn).toHaveBeenCalled();
+  })
+})
+          </code></pre>
+        </section>
 				<section data-markdown class="stretch" style="text-align: left">
-            Abstracting behaviour let's you:
+            Interface in TS let's you:
               - be explicit about the behaviour (readable code)
               - be more generic (compose/swap objects)
+              - write test (mocking)
               - detach behaviour from data (!= class inheritance)
 
             Links:
